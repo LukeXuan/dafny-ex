@@ -5,6 +5,28 @@ predicate is_heap(a: array<int>)
   forall i :: 1 < i < a.Length ==> a[i] <= a[i / 2]
 }
 
+lemma HeapTop(a: array<int>)
+  requires a != null
+  requires is_heap(a)
+  requires a.Length > 1
+  ensures forall k :: 2 <= k < a.Length ==> a[k] <= a[1]
+{
+  var i := 2;
+  while i < a.Length
+    invariant 0 <= i <= a.Length
+    invariant forall k :: 2 <= k < i ==> a[k] <= a[1]
+  {
+    var j := i;
+    while j > 1
+      invariant a[i] <= a[j];
+      invariant j > 0;
+    {
+      j := j / 2;
+    }
+    i := i + 1;
+  }
+}
+
 method swap(a: array<int>, i: int, j: int)
   modifies a
   requires a != null
@@ -95,11 +117,14 @@ method heap_pop(heap: array<int>) returns (new_heap: array<int>, element: int)
   ensures is_heap(new_heap)
   ensures fresh(new_heap)
   ensures forall e :: e != element && e in heap[..] ==> e in new_heap[..]
+  ensures forall k :: 1 <= k < new_heap.Length ==> new_heap[k] <= element
 {
   var temp := extend(heap, 0);
+  HeapTop(temp);
   element := heap[1];
   swap(temp, 1, temp.Length - 1);
   new_heap := slice(temp, temp.Length - 1);
+  assert forall k :: 1 <= k < new_heap.Length ==> new_heap[k] <= element;
   assert forall e :: e != element && e in temp[..temp.Length] ==> e in heap[..];
   var i := 1;
   while i * 2 < new_heap.Length
@@ -107,6 +132,7 @@ method heap_pop(heap: array<int>) returns (new_heap: array<int>, element: int)
     invariant forall e :: e != element && e in heap[..] ==> e in new_heap[..]
     invariant forall k :: 1 < k < new_heap.Length && k / 2 != i ==> new_heap[k] <= new_heap[k / 2]
     invariant forall k :: 3 < k < new_heap.Length && k / 2 == i ==> new_heap[k] <= new_heap[k / 2 / 2]
+    invariant forall k :: 1 <= k < new_heap.Length ==> new_heap[k] <= element
   {
     if (i * 2 + 1 == new_heap.Length) {
       if (new_heap[i] < new_heap[i * 2]) {
